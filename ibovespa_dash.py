@@ -1,7 +1,6 @@
 # Fazer as novas correçoes estéticas necessárias.
-# Transformar a seção dos gráfico de 52 semanas em um carousel
-# Ajustar o preenchimento do espaço dos gráficos de 52 semanas
-# Transformar o Min-Max em um velocímetro.
+# Colocar uma margin-left no valor do cartão de preço da ação.
+# Ajustar a estética dos elementos do carousel.
 # Lembrar de botar o loading na parte do carousel.
 
 # Colocar um card com o preço atual da ação!!!!
@@ -127,7 +126,15 @@ ambev_mean_52 = ambev.resample('W')[
     'Close'].mean().iloc[-52:]
 fig2 = go.Figure()
 fig2.add_trace(go.Scatter(x=ambev_mean_52.index, y=ambev_mean_52.values))
-
+fig2.update_layout(
+    paper_bgcolor='black',
+    font_color='grey',
+    height=230,
+    width=300,
+    margin=dict(l=10, r=10, b=5, t=5),
+    autosize=False,
+    showlegend=False
+)
 # Making a speedometer chart which indicates the stock' minimum and maximum closing prices
 # reached during the last 52 weeks and the its current price.
 df_52_weeks_min = ambev.resample('W')['Close'].min()[-52:].min()
@@ -137,6 +144,15 @@ current_price = ambev.iloc[-1]['Close']
 fig3 = go.Figure()
 fig3.add_trace(go.Indicator(mode='gauge+number', value=270,
                             domain={'x': [0, 1], 'y': [0, 1]}))
+fig3.update_layout(
+    paper_bgcolor='black',
+    font_color='grey',
+    height=230,
+    width=300,
+    margin=dict(l=10, r=10, b=5, t=5),
+    autosize=False,
+    showlegend=False
+)
 
 
 # A function that is going to retrieve the stock's price variation.
@@ -236,22 +252,36 @@ app.layout = html.Div([
                          style_data={'height': '12px', 'backgroundColor': 'black', 'border': 'none'}, style_table={
                             'height': '90px', 'overflowY': 'auto'}),
 
-                     # This Div will hold all the 52-week informations about the stock in analysis.
+                     # This Div will hold a card displaying the selected stock's current price and some of its 52-week informations.
                      html.Div([
+
+                         dbc.Card([
+                             dbc.CardBody([
+                                 html.H1('ABEV3.SA', id='stock-name',
+                                         style={'font-size': '13px', 'text-align': 'center'}),
+                                 dbc.Row([
+                                     dbc.Col([
+                                         html.P('R$ 19.90', id='stock-price', style={
+                                             'font-size': '40px'})
+                                     ], width=8),
+                                     dbc.Col([
+                                         # html.P('2021-12-31',
+                                         # id='stock-date', style={'font-size': '13px', 'font-style': 'italic', 'margin-right': '7px'}),
+                                         html.P(
+                                             '(-0.86%)', id='stock-variation', style={'font-size': '16px', 'margin-top': '25px'})
+                                     ], width=4)
+
+                                 ])
+
+
+                                 # dcc.Graph
+                             ])
+                         ], style={'height': '105px'}),
 
                          # Creating a Carousel showing the chosen stock's current price along some
                          # other interesting data.
                          dtc.Carousel([
 
-                             dbc.Card([
-                                 dbc.CardBody([
-                                     html.H1('AMBEV TESTE', id='stock-name',
-                                             style={'font-size': '10px'}),
-                                     html.P('R$ 19.90'),
-
-                                     # dcc.Graph
-                                 ])
-                             ]),
                              dcc.Graph(id='52-week-avg-price', figure=fig2),
                              dcc.Graph(id='52-week-min-max', figure=fig3)
                          ], slides_to_show=1, autoplay=False, dots=True),
@@ -285,8 +315,7 @@ app.layout = html.Div([
                                  ], style={'height': '90px'})
                              ], width=6)
                          ])
-                     ], style={'backgroundColor': 'black', 'margin-top': '10px', 'padding': '5px', 'border-style': 'groove', 'border-width': '1px',
-                               'border-color': '#adafae'})
+                     ], style={'backgroundColor': 'black', 'margin-top': '20px', 'padding': '5px'})
 
                  ], width=3)
                  ])
