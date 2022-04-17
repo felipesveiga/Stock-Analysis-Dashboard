@@ -1,7 +1,4 @@
-# Fazer as novas correçoes estéticas necessárias.
-# Colocar uma margin-left no valor do cartão de preço da ação.
-# Ajustar a estética dos elementos do carousel.
-# Lembrar de botar o loading na parte do carousel.
+# Colocar bordas na parte de dados de 52 semanas.
 
 # Colocar um card com o preço atual da ação!!!!
 
@@ -12,6 +9,7 @@
 from tracemalloc import start
 import dash
 from dash import html, dcc, dash_table, callback_context
+from matplotlib.pyplot import title
 import plotly.graph_objects as go
 import dash_trich_components as dtc
 from dash.dependencies import Input, Output
@@ -127,29 +125,41 @@ ambev_mean_52 = ambev.resample('W')[
 fig2 = go.Figure()
 fig2.add_trace(go.Scatter(x=ambev_mean_52.index, y=ambev_mean_52.values))
 fig2.update_layout(
+    title={'text': 'Weekly Average Price', 'y': 0.9},
+    font={'size': 8},
+    plot_bgcolor='black',
     paper_bgcolor='black',
     font_color='grey',
-    height=230,
-    width=300,
+    height=250,
+    width=310,
     margin=dict(l=10, r=10, b=5, t=5),
     autosize=False,
     showlegend=False
 )
+fig2.update_xaxes(tickformat='%m-%y', showticklabels=False,
+                  gridcolor='darkgrey', showgrid=False)
+fig2.update_yaxes(range=[ambev_mean_52.min()-1, ambev_mean_52.max()+1.5],
+                  showticklabels=False, gridcolor='darkgrey', showgrid=False)
+
 # Making a speedometer chart which indicates the stock' minimum and maximum closing prices
 # reached during the last 52 weeks and the its current price.
 df_52_weeks_min = ambev.resample('W')['Close'].min()[-52:].min()
 df_52_weeks_max = ambev.resample('W')['Close'].max()[-52:].max()
 current_price = ambev.iloc[-1]['Close']
-
 fig3 = go.Figure()
-fig3.add_trace(go.Indicator(mode='gauge+number', value=270,
-                            domain={'x': [0, 1], 'y': [0, 1]}))
+fig3.add_trace(go.Indicator(mode='gauge+number', value=ambev['Close'].iloc[-1],
+                            domain={'x': [0, 1], 'y': [0, 1]},
+                            gauge={
+                                'axis': {'range': [df_52_weeks_min, df_52_weeks_max]},
+                                'bar': {'color': '#606bf3'}}))
 fig3.update_layout(
+    title={'text': 'Min-Max Prices', 'y': 0.9},
+    font={'size': 8},
     paper_bgcolor='black',
     font_color='grey',
-    height=230,
-    width=300,
-    margin=dict(l=10, r=10, b=5, t=5),
+    height=250,
+    width=280,
+    margin=dict(l=35, r=0, b=5, t=5),
     autosize=False,
     showlegend=False
 )
@@ -262,7 +272,7 @@ app.layout = html.Div([
                                  dbc.Row([
                                      dbc.Col([
                                          html.P('R$ 19.90', id='stock-price', style={
-                                             'font-size': '40px'})
+                                             'font-size': '40px', 'margin-left': '5px'})
                                      ], width=8),
                                      dbc.Col([
                                          # html.P('2021-12-31',
@@ -276,10 +286,15 @@ app.layout = html.Div([
 
                                  # dcc.Graph
                              ])
-                         ], style={'height': '105px'}),
+                         ], style={'height': '105px'}, color='black'),
 
-                         # Creating a Carousel showing the chosen stock's current price along some
-                         # other interesting data.
+                         # In the section below, some informations about the stock's performance in the last 52 weeks are going to be
+                         # exposed.
+                         html.H1(
+                             '52-Week Data', style={'font-size': '25px', 'text-align': 'center', 'color': 'grey', 'margin-top': '5px',
+                                                    'margin-bottom': '0px'}),
+                         # Creating a Carousel showing the stock's weekly average price and a Speedoemeter
+                         # displaying how far its current price is from its minimum and maximum values achieved.
                          dtc.Carousel([
 
                              dcc.Graph(id='52-week-avg-price', figure=fig2),
@@ -327,7 +342,7 @@ app.layout = html.Div([
 # Allowing the stocks dropdown to display the stocks that are pertained by the sector chosen in the economic sector dropdown
 
 
-@app.callback(
+@ app.callback(
     Output('stocks-dropdown', 'options'),
     Input('sectors-dropdown', 'value')
 )
@@ -337,7 +352,7 @@ def modify_stocks_dropdown(sector):
 
 
 # Function that will change the data being displayed in the main chart in accordance to the stock selected in the dropdown.
-@app.callback(
+@ app.callback(
     Output('price-chart', 'figure'),
     Input('stocks-dropdown', 'value'),
     Input('complements-checklist', 'value'),
@@ -355,7 +370,7 @@ def change_price_chart(stock, checklist_values, button_1w, button_1m, button_3m,
     df['Rolling Mean'] = df['Close'].rolling(window=9).mean()
     df['Exponential Rolling Mean'] = df['Close'].ewm(
         span=9, adjust=False).mean()
-    #df['MACD'] = macd(df['Close']).values
+    # df['MACD'] = macd(df['Close']).values
     # df['MACD'] = macd(df['Close']
     # O IBOVESPA não foi calculado em certas datas. Portanto, há um menor número de dados sobre ele do que sobre
     # a ação sendo analisada, o que impossibilita a sua inserção em 'df'.
@@ -365,7 +380,7 @@ def change_price_chart(stock, checklist_values, button_1w, button_1m, button_3m,
               'Exponential Rolling Mean': '#03396c', 'MACD': '#a7340e'}
 
     fig = go.Figure()
-    #fig = go.Figure()
+    # fig = go.Figure()
     fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], close=df['Close'],
                                  high=df['High'], low=df['Low'], name='Stock Price'))
     if checklist_values != None:
@@ -418,7 +433,7 @@ def change_price_chart(stock, checklist_values, button_1w, button_1m, button_3m,
 
 
 # This dash_table will display the value from the stocks that are part of the economic sector chosen in the Data Table.
-@app.callback(
+@ app.callback(
     Output('stocks-table', 'data'),
     Output('stocks-table', 'columns'),
     Input('sectors-dropdown', 'value')
@@ -492,7 +507,7 @@ def update_52_weeks_chart(stock, chart):
 # stock and the BOVESPA index.
 
 
-@app.callback(
+@ app.callback(
     Output('ibovespa-correlation', 'children'),
     Input('stocks-dropdown', 'value')
 )
@@ -515,7 +530,7 @@ def ibovespa_correlation(stock):
 # and the average close price from its respective sector in the last 52 weeks.
 
 
-@app.callback(
+@ app.callback(
     Output('sector-correlation', 'children'),
     Input('sectors-dropdown', 'value'),
     Input('stocks-dropdown', 'value')
