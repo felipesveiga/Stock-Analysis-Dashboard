@@ -1,6 +1,13 @@
-# Colocar bordas na parte de dados de 52 semanas.
+# A funcionalidade está "burra", todas as funções de atualizações de gráficos
+# fazem uma requisição na API do yahoo.
 
-# Colocar um card com o preço atual da ação!!!!
+# Criar uma função que resgatará todas as ações uma única vez, armazenando-as em um dicionário.
+# Assim, não precisaremos fazer mais todas essas visitas na API do yahoo.
+# {'Sector':{'Stock1':pd.DataFrame, 'Stock2':pd.DataFrame}...}
+
+# Colocar a interatividade nos gráficos de 52 semanas.
+# Se possível, colocar uma nova função que resgatará os preços de todas as ações
+# disponíveis. Com isso, precisaremos fazer uma única consulta na API.
 
 # Possivelmente, reestruturar o projeto, separando-o em vários
 # arquivos (data_cleaning, page_layout, main.py``)
@@ -96,6 +103,7 @@ carousel_stocks = ['ITUB4', 'BBDC4', 'VALE3', 'PETR4', 'PETR3',
 # The standard stock displayed when the dashboard is initialized will be ABEV3.
 ambev = web.DataReader('ABEV3.SA', 'yahoo',
                        start='01-01-2015', end='31-12-2021')
+ambev_variation = 1 - (ambev['Close'].iloc[-1] / ambev['Close'].iloc[-2])
 fig = go.Figure()
 fig.add_trace(go.Candlestick(x=ambev.index,
                              open=ambev['Open'],
@@ -147,7 +155,7 @@ df_52_weeks_min = ambev.resample('W')['Close'].min()[-52:].min()
 df_52_weeks_max = ambev.resample('W')['Close'].max()[-52:].max()
 current_price = ambev.iloc[-1]['Close']
 fig3 = go.Figure()
-fig3.add_trace(go.Indicator(mode='gauge+number', value=ambev['Close'].iloc[-1],
+fig3.add_trace(go.Indicator(mode='gauge+number', value=current_price,
                             domain={'x': [0, 1], 'y': [0, 1]},
                             gauge={
                                 'axis': {'range': [df_52_weeks_min, df_52_weeks_max]},
@@ -223,23 +231,23 @@ app.layout = html.Div([
 
                          ]),
                          dbc.Row([
-                             html.Div([
-                                 html.Button('1W', id='1W-button',
-                                             n_clicks=0, className='btn-secondary'),
-                                 html.Button('1M', id='1M-button',
-                                             n_clicks=0, className='btn-secondary'),
-                                 html.Button('3M', id='3M-button',
-                                             n_clicks=0, className='btn-secondary'),
-                                 html.Button('6M', id='6M-button',
-                                             n_clicks=0, className='btn-secondary'),
-                                 html.Button('1Y', id='1Y-button',
-                                             n_clicks=0, className='btn-secondary'),
-                                 html.Button('3Y', id='3Y-button',
-                                             n_clicks=0, className='btn-secondary')
-                             ], style={'padding': '15px', 'margin-left': '35px'})
-                         ]),
+                             dbc.Col([
+                                 html.Div([
+                                     html.Button('1W', id='1W-button',
+                                                 n_clicks=0, className='btn-secondary'),
+                                     html.Button('1M', id='1M-button',
+                                                 n_clicks=0, className='btn-secondary'),
+                                     html.Button('3M', id='3M-button',
+                                                 n_clicks=0, className='btn-secondary'),
+                                     html.Button('6M', id='6M-button',
+                                                 n_clicks=0, className='btn-secondary'),
+                                     html.Button('1Y', id='1Y-button',
+                                                 n_clicks=0, className='btn-secondary'),
+                                     html.Button('3Y', id='3Y-button',
+                                                 n_clicks=0, className='btn-secondary'),
 
-                         dbc.Row([
+                                 ], style={'padding': '15px', 'margin-left': '35px'})
+                             ]),
                              dbc.Col([
                                  dcc.Checklist(
                                      ['Rolling Mean',
@@ -248,7 +256,10 @@ app.layout = html.Div([
                                                  'margin-right': '5px'},
                                      id='complements-checklist')
                              ])
-                         ])
+                         ]),
+
+
+
                      ]),
 
                  ], width=9),
@@ -267,18 +278,21 @@ app.layout = html.Div([
 
                          dbc.Card([
                              dbc.CardBody([
-                                 html.H1('ABEV3.SA', id='stock-name',
+                                 html.H1('ABEV3', id='stock-name',
                                          style={'font-size': '13px', 'text-align': 'center'}),
                                  dbc.Row([
                                      dbc.Col([
-                                         html.P('R$ 19.90', id='stock-price', style={
+                                         # Placing the current price in this <p> tag.
+                                         html.P('R$ {:.2f}'.format(ambev['Close'].iloc[-1]), id='stock-price', style={
                                              'font-size': '40px', 'margin-left': '5px'})
                                      ], width=8),
                                      dbc.Col([
                                          # html.P('2021-12-31',
                                          # id='stock-date', style={'font-size': '13px', 'font-style': 'italic', 'margin-right': '7px'}),
                                          html.P(
-                                             '(-0.86%)', id='stock-variation', style={'font-size': '16px', 'margin-top': '25px'})
+                                             '{}{:.2%}'.format(
+                                                 '+' if ambev_variation > 0 else '-', ambev_variation),
+                                             id='stock-variation', style={'font-size': '14px', 'margin-top': '25px', 'color': 'green' if ambev_variation > 0 else 'red'})
                                      ], width=4)
 
                                  ])
@@ -286,18 +300,19 @@ app.layout = html.Div([
 
                                  # dcc.Graph
                              ])
-                         ], style={'height': '105px'}, color='black'),
+                         ], id='stock-data', style={'height': '105px'}, color='black'),
 
                          # In the section below, some informations about the stock's performance in the last 52 weeks are going to be
                          # exposed.
+                         html.Hr(),
                          html.H1(
                              '52-Week Data', style={'font-size': '25px', 'text-align': 'center', 'color': 'grey', 'margin-top': '5px',
                                                     'margin-bottom': '0px'}),
-                         # Creating a Carousel showing the stock's weekly average price and a Speedoemeter
+                         # Creating a Carousel showing the stock's average weekly price and a Speedoemeter
                          # displaying how far its current price is from its minimum and maximum values achieved.
                          dtc.Carousel([
 
-                             dcc.Graph(id='52-week-avg-price', figure=fig2),
+                             dcc.Graph(id='52-avg-week-price', figure=fig2),
                              dcc.Graph(id='52-week-min-max', figure=fig3)
                          ], slides_to_show=1, autoplay=False, dots=True),
 
@@ -450,6 +465,99 @@ def update_stocks_table(sector):
         df.loc[stock, 'Close'] = f'R$ {stock_value :.2f}'
     # Finally, the DataFrame will be converted into a dictionary.
     return df.to_dict('records'), [{'name': i, 'id': i} for i in df.columns]
+
+# The following function will edit the values being displayed in the 'stock-data' card.
+
+
+@app.callback(
+    Output('stock-name', 'children'),
+    Output('stock-price', 'children'),
+    Output('stock-variation', 'children'),
+    Output('stock-variation', 'style'),
+    Input('stocks-dropdown', 'value')
+)
+def update_stock_data_card(stock):
+
+    # Retrieving data from the Yahoo Finance API.
+    df = web.DataReader(f'{stock}.SA', 'yahoo',
+                        start='2021-12-29', end='2021-12-31')['Close']
+    # Getting the stock's current price and its variation in comparison to its previous value.
+    stock_current_price = df.iloc[-1]
+    stock_variation = 1 - (df.iloc[-1] / df.iloc[-2])
+    return stock, 'R$ {:.2f}'.format(stock_current_price), '{}{:.2%}'.format('+' if stock_variation > 0 else'-', stock_variation), \
+        {'font-size': '14px', 'margin-top': '25px',
+            'color': 'green' if stock_variation > 0 else 'red'}
+
+# This function is going to be responsible of updating the average weekly price.
+
+
+@app.callback(
+    Output('52-avg-week-price', 'figure'),
+    Input('stocks-dropdown', 'value')
+)
+def update_average_weekly_price(stock):
+    # Receiving the stock's prices and measuring the its average weekly price in the last 52 weeks.
+    df = web.DataReader(f'{stock}.SA', 'yahoo',
+                        start='2021-01-01', end='2021-12-31')['Close']
+    df_avg_52 = df.resample('W').mean().iloc[-52:]
+
+    # Plotting the data in a line chart.
+    fig2 = go.Figure()
+    fig2.add_trace(go.Scatter(x=df_avg_52.index, y=df_avg_52.values))
+    fig2.update_layout(
+        title={'text': 'Weekly Average Price', 'y': 0.9},
+        font={'size': 8},
+        plot_bgcolor='black',
+        paper_bgcolor='black',
+        font_color='grey',
+        height=250,
+        width=310,
+        margin=dict(l=10, r=10, b=5, t=5),
+        autosize=False,
+        showlegend=False
+    )
+    fig2.update_xaxes(tickformat='%m-%y', showticklabels=False,
+                      gridcolor='darkgrey', showgrid=False)
+    fig2.update_yaxes(range=[df_avg_52.min()-1, df_avg_52.max()+1.5],
+                      showticklabels=False, gridcolor='darkgrey', showgrid=False)
+
+    return fig2
+
+# This function will update the speedometer chart located in the '52-Week Data' section.
+
+
+@app.callback(
+    Output('52-week-min-max', 'figure'),
+    Input('stocks-dropdown', 'value')
+)
+def update_min_max(stock):
+    # The same logic as 'update_average_weekly_price', but instead we are getting the minimum and maximum prices
+    # reached in the last 52 weeks and comparing them with the stock's current price.
+    df = web.DataReader(f'{stock}.SA', 'yahoo',
+                        start='2021-01-01', end='2021-12-31')['Close']
+    df_avg_52 = df.resample('W').mean().iloc[-52:]
+    df_52_weeks_min = df_avg_52.resample('W').min()[-52:].min()
+    df_52_weeks_max = df_avg_52.resample('W').max()[-52:].max()
+    current_price = df.iloc[-1]
+    fig3 = go.Figure()
+    fig3.add_trace(go.Indicator(mode='gauge+number', value=current_price,
+                                domain={'x': [0, 1], 'y': [0, 1]},
+                                gauge={
+                                    'axis': {'range': [df_52_weeks_min, df_52_weeks_max]},
+                                    'bar': {'color': '#606bf3'}}))
+    fig3.update_layout(
+        title={'text': 'Min-Max Prices', 'y': 0.9},
+        font={'size': 8},
+        paper_bgcolor='black',
+        font_color='grey',
+        height=250,
+        width=280,
+        margin=dict(l=35, r=0, b=5, t=5),
+        autosize=False,
+        showlegend=False
+    )
+
+    return fig3
 
 
 '''
