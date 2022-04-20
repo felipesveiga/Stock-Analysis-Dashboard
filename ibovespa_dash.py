@@ -1,4 +1,6 @@
-# A funcionalidade está "burra", todas as funções de atualizações de gráficos
+# Colocar mais um ou dois indicadores.
+
+# A funcionalidade está ineficiente, todas as funções de atualizações de gráficos
 # fazem uma requisição na API do yahoo.
 
 # Criar uma função que resgatará todas as ações uma única vez, armazenando-as em um dicionário.
@@ -314,7 +316,7 @@ app.layout = html.Div([
 
                              dcc.Graph(id='52-avg-week-price', figure=fig2),
                              dcc.Graph(id='52-week-min-max', figure=fig3)
-                         ], slides_to_show=1, autoplay=False, dots=True),
+                         ], slides_to_show=1, autoplay=True, arrows=False),
 
 
 
