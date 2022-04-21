@@ -1,20 +1,12 @@
-# Colocar mais um ou dois indicadores.
+# Alinhar o topo da tabela com o topo dos dropdowns
+# Colocar uma pequnena 'margin-top' entre o carrosel e os dropdowns.
 
-# A funcionalidade está ineficiente, todas as funções de atualizações de gráficos
-# fazem uma requisição na API do yahoo.
+# Afinar as linhas do Bollinger
 
-# Criar uma função que resgatará todas as ações uma única vez, armazenando-as em um dicionário.
-# Assim, não precisaremos fazer mais todas essas visitas na API do yahoo.
-# {'Sector':{'Stock1':pd.DataFrame, 'Stock2':pd.DataFrame}...}
+# Criar um arquivo JSON com os preços a serem usados no carrosel. Eles já existirão quando o dashboard for carregado,
+# o que vai tirar a necessidade de fazer múltiplas requisições na API do YAahoo
 
-# Colocar a interatividade nos gráficos de 52 semanas.
-# Se possível, colocar uma nova função que resgatará os preços de todas as ações
-# disponíveis. Com isso, precisaremos fazer uma única consulta na API.
-
-# Possivelmente, reestruturar o projeto, separando-o em vários
-# arquivos (data_cleaning, page_layout, main.py``)
-
-# Deixei o Carousel escondido para o carregamento demorar menos
+# Deixei o Carousel escondido para o carregamento demorar menos.
 from tracemalloc import start
 import dash
 from dash import html, dcc, dash_table, callback_context
@@ -26,7 +18,7 @@ import dash_bootstrap_components as dbc
 import plotly.express as px
 import json
 import pandas as pd
-from pandas_ta import macd
+from pandas_ta import bbands
 import pandas_datareader as web
 import numpy as np
 import datetime
@@ -190,7 +182,8 @@ app.layout = html.Div([
     # Remover esta Div abaixo (?) : Testar o impacto de removê-la
     html.Div([
         # In this row, a carousel showing the prices of some the main stocks from IBOVESPA will be placed.
-        dbc.Row(['''
+        dbc.Row([
+            ###
             dtc.Carousel([
 
                 html.Div([
@@ -199,42 +192,42 @@ app.layout = html.Div([
                     html.Span(f'{variation(stock):.2%}',
                               style={'color': 'green' if variation(stock) > 0 else 'red'})
                 ]) for stock in sorted(carousel_stocks)
-            ], autoplay=True, slides_to_show=5)''',
+            ], id='main-carousel', autoplay=True, slides_to_show=5),
 
-                # The column below will occupy 75% of the width available in the dashboard.
-                 dbc.Col([
-                     # Como utilizaremos dois dropdowns, terei que criar uma coluna para comportar ambos.
-                     dbc.Row([
-                         dbc.Col([
-                             html.Label('Select the desired sector',
-                                        style={'margin-left': '40px'}),
-                             dcc.Dropdown(options=[{'label': sector, 'value': sector}
-                                                   for sector in sorted(list(sector_stocks.keys()))],
-                                          value='Food & Beverages',
-                                          id='sectors-dropdown', style={'margin-left': '20px', 'width': '400px'})
-                         ], width=6),
-                         dbc.Col([
+            # The column below will occupy 75% of the width available in the dashboard.
+            dbc.Col([
+                # Como utilizaremos dois dropdowns, terei que criar uma coluna para comportar ambos.
+                dbc.Row([
+                    dbc.Col([
+                        html.Label('Select the desired sector',
+                                   style={'margin-left': '40px'}),
+                        dcc.Dropdown(options=[{'label': sector, 'value': sector}
+                                              for sector in sorted(list(sector_stocks.keys()))],
+                                     value='Food & Beverages',
+                                     id='sectors-dropdown', style={'margin-left': '20px', 'width': '400px'})
+                    ], width=6),
+                    dbc.Col([
 
-                             html.Label('Select the stock to be displayed'),
-                             dcc.Dropdown(
-                                 id='stocks-dropdown',
-                                 value='ABEV3',
-                                 className="disabled",
-                                 style={'margin-right': '15px'}
-                             )
-                         ], width=6)
-                     ]),
+                        html.Label('Select the stock to be displayed'),
+                        dcc.Dropdown(
+                            id='stocks-dropdown',
+                            value='ABEV3',
+                            className="disabled",
+                            style={'margin-right': '15px'}
+                        )
+                    ], width=6)
+                ]),
 
-                     dbc.Row([
-                         dbc.Col([
-                             dcc.Loading(
-                                 [dcc.Graph(id='price-chart', figure=fig)], id='loading-price-chart',
-                                 type='dot', color='#1F51FF'),
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Loading(
+                            [dcc.Graph(id='price-chart', figure=fig)], id='loading-price-chart',
+                            type='dot', color='#1F51FF'),
 
-                         ]),
-                         dbc.Row([
-                             dbc.Col([
-                                 html.Div([
+                    ]),
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div([
                                      html.Button('1W', id='1W-button',
                                                  n_clicks=0, className='btn-secondary'),
                                      html.Button('1M', id='1M-button',
@@ -248,35 +241,36 @@ app.layout = html.Div([
                                      html.Button('3Y', id='3Y-button',
                                                  n_clicks=0, className='btn-secondary'),
 
-                                 ], style={'padding': '15px', 'margin-left': '35px'})
-                             ]),
-                             dbc.Col([
-                                 dcc.Checklist(
-                                     ['Rolling Mean',
-                                      'Exponential Rolling Mean'],
-                                     inputStyle={'margin-left': '15px',
-                                                 'margin-right': '5px'},
-                                     id='complements-checklist')
-                             ])
-                         ]),
+                                     ], style={'padding': '15px', 'margin-left': '35px'})
+                        ], width=4),
+
+                        dbc.Col([
+                            dcc.Checklist(
+                                ['Rolling Mean',
+                                 'Exponential Rolling Mean',
+                                 'Bollinger Bands'],
+                                inputStyle={'margin-left': '15px',
+                                            'margin-right': '5px'},
+                                id='complements-checklist',
+                                style={'margin-top': '20px'})
+                        ], width=8)
+                    ]),
 
 
 
-                     ]),
+                ]),
 
-                 ], width=9),
-                 dbc.Col([
-                     html.Label(
-                         'Current stock prices from the economic sector chosen'),
-                     dash_table.DataTable(
-                         id='stocks-table', style_cell={'font_size': '12px',  'textAlign': 'center'},
-                         style_header={'backgroundColor': 'black',
-                                       'padding-right': '58px', 'border': 'none'},
-                         style_data={'height': '12px', 'backgroundColor': 'black', 'border': 'none'}, style_table={
-                            'height': '90px', 'overflowY': 'auto'}),
+            ], width=9),
+            dbc.Col([
+                dash_table.DataTable(
+                    id='stocks-table', style_cell={'font_size': '12px',  'textAlign': 'center'},
+                    style_header={'backgroundColor': 'black',
+                                  'padding-right': '58px', 'border': 'none'},
+                    style_data={'height': '12px', 'backgroundColor': 'black', 'border': 'none'}, style_table={
+                        'height': '90px', 'overflowY': 'auto'}),
 
-                     # This Div will hold a card displaying the selected stock's current price and some of its 52-week informations.
-                     html.Div([
+                # This Div will hold a card displaying the selected stock's current price and some of its 52-week informations.
+                html.Div([
 
                          dbc.Card([
                              dbc.CardBody([
@@ -316,7 +310,7 @@ app.layout = html.Div([
 
                              dcc.Graph(id='52-avg-week-price', figure=fig2),
                              dcc.Graph(id='52-week-min-max', figure=fig3)
-                         ], slides_to_show=1, autoplay=True, arrows=False),
+                         ], slides_to_show=1, autoplay=True, style={'height': '250px', 'width': '310px'}),
 
 
 
@@ -328,7 +322,7 @@ app.layout = html.Div([
                                  dbc.Card([
                                      dbc.CardBody([
                                          html.H1('IBOVESPA Correlation',
-                                                 style={'font-size': '15px'}),
+                                                 style={'font-size': '12px'}),
                                          html.P(id='ibovespa-correlation',
                                                 style={'font-size': '30px'})
                                      ], style={'height': '90px'})
@@ -340,17 +334,17 @@ app.layout = html.Div([
                                  dbc.Card([
                                      dbc.CardBody([
                                          html.H1('Sector Correlation',
-                                                 style={'font-size': '15px'}),
+                                                 style={'font-size': '12px'}),
                                          html.P(id='sector-correlation',
                                                 style={'font-size': '30px'})
                                      ])
                                  ], style={'height': '90px'})
                              ], width=6)
                          ])
-                     ], style={'backgroundColor': 'black', 'margin-top': '20px', 'padding': '5px'})
+                         ], style={'backgroundColor': 'black', 'margin-top': '20px', 'padding': '5px'})
 
-                 ], width=3)
-                 ])
+            ], width=3)
+        ])
     ])
 
 ])
@@ -383,6 +377,7 @@ def modify_stocks_dropdown(sector):
 def change_price_chart(stock, checklist_values, button_1w, button_1m, button_3m, button_6m, button_1y, button_3y):
     df = web.DataReader(f'{stock}.SA', 'yahoo',
                         start='01-01-2015', end='31-12-2021')
+    df_bbands = bbands(df['Close'], length=20, std=2)
     # Measuring the Rolling Mean and Exponential Rolling means
     df['Rolling Mean'] = df['Close'].rolling(window=9).mean()
     df['Exponential Rolling Mean'] = df['Close'].ewm(
@@ -394,16 +389,32 @@ def change_price_chart(stock, checklist_values, button_1w, button_1m, button_3m,
 
     # Each metric will have its own color in the chart.
     colors = {'Rolling Mean': '#6fa8dc',
-              'Exponential Rolling Mean': '#03396c', 'MACD': '#a7340e'}
+              'Exponential Rolling Mean': '#03396c', 'Bollinger Bands Low': 'darkorange',
+              'Bollinger Bands AVG': 'brown',
+              'Bollinger Bands High': 'darkorange'}
 
     fig = go.Figure()
-    # fig = go.Figure()
     fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], close=df['Close'],
                                  high=df['High'], low=df['Low'], name='Stock Price'))
     if checklist_values != None:
         for metric in checklist_values:
-            fig.add_trace(go.Scatter(
-                x=df.index, y=df[metric], mode='lines', name=metric, line={'color': colors[metric]}))
+
+            if metric == 'Bollinger Bands':
+                fig.add_trace(go.Scatter(
+                    x=df.index, y=df_bbands.iloc[:, 0],
+                    mode='lines', name=metric, line={'color': colors['Bollinger Bands Low'], 'width': 1}))
+
+                fig.add_trace(go.Scatter(
+                    x=df.index, y=df_bbands.iloc[:, 1],
+                    mode='lines', name=metric, line={'color': colors['Bollinger Bands AVG'], 'width': 1}))
+
+                fig.add_trace(go.Scatter(
+                    x=df.index, y=df_bbands.iloc[:, 2],
+                    mode='lines', name=metric, line={'color': colors['Bollinger Bands High'], 'width': 1}))
+
+            else:
+                fig.add_trace(go.Scatter(
+                    x=df.index, y=df[metric], mode='lines', name=metric, line={'color': colors[metric], 'width': 1}))
     fig.update_layout(
         paper_bgcolor='black',
         font_color='grey',
