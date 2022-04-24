@@ -1,16 +1,8 @@
-# Alinhar o topo da tabela com o topo dos dropdowns
-# Colocar uma pequnena 'margin-top' entre o carrosel e os dropdowns.
-
-# Afinar as linhas do Bollinger
-
-# Criar um arquivo JSON com os preços a serem usados no carrosel. Eles já existirão quando o dashboard for carregado,
-# o que vai tirar a necessidade de fazer múltiplas requisições na API do YAahoo
-
-# Deixei o Carousel escondido para o carregamento demorar menos.
+# Parei no cartão com o preço da ação atual.
 from tracemalloc import start
 import dash
 from dash import html, dcc, dash_table, callback_context
-from matplotlib.pyplot import title
+#from matplotlib.pyplot import title
 import plotly.graph_objects as go
 import dash_trich_components as dtc
 from dash.dependencies import Input, Output
@@ -34,6 +26,8 @@ stocks_sectores.columns = stocks_sectores.iloc[0]
 stocks_sectores.drop(index=0, inplace=True)
 stocks_sectores_dict = stocks_sectores[[
     'Ticker', 'Setor']].to_dict(orient='list')
+
+# Implementing the economic sector names as the dictionay key and their stocks as values.
 d = {}
 for stock, sector in zip(stocks_sectores_dict['Ticker'], stocks_sectores_dict['Setor']):
     if sector not in d.keys():
@@ -41,8 +35,8 @@ for stock, sector in zip(stocks_sectores_dict['Ticker'], stocks_sectores_dict['S
     else:
         d[sector].append(stock)
 
-# Correcting a tiny issue with the resulting dictionary: there were two
-# keys concerning the very same economic sector on account of a writing mistake! Let's merge them into one.
+# Correcting a tiny issue with the resulting dictionary: sometimes, two dictionary keys were
+# concerning the very same economic sector! Let's merge them into one.
 d['Bens Industriais'].extend(d['Bens industriais'])
 d.pop('Bens industriais')
 d['Bens Industriais']
@@ -86,18 +80,46 @@ for sector in list(d.keys()):
 with open("sector_stocks.json", "w") as outfile:
     json.dump(d, outfile)
 '''
-# Loading the json file.
-sector_stocks = json.load(open('sector_stocks.json', 'r'))
 
-# This list will be of use in the creation of the dashboards' carousel.
+# Aiming speed, I had to store the dashboard Carousel's values inside a json file. By doing this, we do not need
+# to make multiple requests to Yahoo's API in order to display the object.
+'''
+# A function that is going to retrieve the stocks' price variation.
+
+
+def variation(name):
+    df = web.DataReader(f'{name}.SA', 'yahoo',
+                        start='29-12-2021', end='30-12-2021')
+    return 1-(df['Close'].iloc[-1] / df['Close'].iloc[-2])
+
+
+# Listing the companies to be shown in the Carousel.
 carousel_stocks = ['ITUB4', 'BBDC4', 'VALE3', 'PETR4', 'PETR3',
                    'ABEV3', 'BBAS3', 'B3SA3', 'ITSA4', 'CRFB3', 'CIEL3',
                    'EMBR3', 'JBSS3', 'MGLU3', 'PCAR3', 'SANB11', 'SULA11']
 
+carousel_prices = {}
+for stock in carousel_stocks:
+    # Calculating the stocks' price variation and storing it in the 'carousel_prices' dictionary.
+    carousel_prices[stock] = variation(stock)
+
+# Turning 'carousel_prices' into a json file.
+with open('carousel_prices.json', 'w') as outfile:
+    json.dump(carousel_prices, outfile)'''
+
+
+# Loading the dashboard's 'sector_stock' and 'carousel_prices'  json files.
+sector_stocks = json.load(open('sector_stocks.json', 'r'))
+carousel_prices = json.load(open('carousel_prices.json', 'r'))
+
 # The standard stock displayed when the dashboard is initialized will be ABEV3.
 ambev = web.DataReader('ABEV3.SA', 'yahoo',
                        start='01-01-2015', end='31-12-2021')
+
+# 'ambev_variation' is stored inside the card that shows the stock's current price.
 ambev_variation = 1 - (ambev['Close'].iloc[-1] / ambev['Close'].iloc[-2])
+
+# 'fig1' exposes a candlestick chart with the prices of the stock since 2015.
 fig = go.Figure()
 fig.add_trace(go.Candlestick(x=ambev.index,
                              open=ambev['Open'],
@@ -114,14 +136,15 @@ fig.update_layout(
     autosize=False,
     showlegend=False
 )
-# Setting the graph to display the 2021 prices in a first moment. Nonetheless,the user can also manually ajust the zoom size.
+# Setting the graph to display the 2021 prices in a first moment. Nonetheless,the user can also manually ajust the zoom size
+# either by selecting a section of the chart or using one of the time span buttons available.
 # The default
 min_date = '2021-01-01'
 max_date = '2021-12-31'
 fig.update_xaxes(range=[min_date, max_date])
 fig.update_yaxes(tickprefix='R$')
 
-# The output from this small resample operation will feed the weekly average price chart.
+# The output from this small resample operation feeds the weekly average price chart.
 ambev_mean_52 = ambev.resample('W')[
     'Close'].mean().iloc[-52:]
 fig2 = go.Figure()
@@ -132,19 +155,18 @@ fig2.update_layout(
     plot_bgcolor='black',
     paper_bgcolor='black',
     font_color='grey',
-    height=250,
+    height=220,
     width=310,
     margin=dict(l=10, r=10, b=5, t=5),
     autosize=False,
     showlegend=False
 )
-fig2.update_xaxes(tickformat='%m-%y', showticklabels=False,
-                  gridcolor='darkgrey', showgrid=False)
+fig2.update_xaxes(showticklabels=False, showgrid=False)
 fig2.update_yaxes(range=[ambev_mean_52.min()-1, ambev_mean_52.max()+1.5],
                   showticklabels=False, gridcolor='darkgrey', showgrid=False)
 
 # Making a speedometer chart which indicates the stock' minimum and maximum closing prices
-# reached during the last 52 weeks and the its current price.
+# reached during the last 52 weeks along its current price.
 df_52_weeks_min = ambev.resample('W')['Close'].min()[-52:].min()
 df_52_weeks_max = ambev.resample('W')['Close'].max()[-52:].max()
 current_price = ambev.iloc[-1]['Close']
@@ -159,7 +181,7 @@ fig3.update_layout(
     font={'size': 8},
     paper_bgcolor='black',
     font_color='grey',
-    height=250,
+    height=220, 
     width=280,
     margin=dict(l=35, r=0, b=5, t=5),
     autosize=False,
@@ -167,37 +189,32 @@ fig3.update_layout(
 )
 
 
-# A function that is going to retrieve the stock's price variation.
-
-
-def variation(name):
-    df = web.DataReader(f'{name}.SA', 'yahoo',
-                        start='29-12-2021', end='30-12-2021')
-    return 1-(df['Close'].iloc[-1] / df['Close'].iloc[-2])
-
-
 # Remember to always place the 'stylesheet' inside brackets.
 app = dash.Dash(external_stylesheets=[dbc.themes.CYBORG])
 app.layout = html.Div([
-    # Remover esta Div abaixo (?) : Testar o impacto de removê-la
-    html.Div([
-        # In this row, a carousel showing the prices of some the main stocks from IBOVESPA will be placed.
-        dbc.Row([
-            ###
+    # In this row, a carousel showing the prices of some the main stocks from IBOVESPA is placed.
+    dbc.Row([
             dtc.Carousel([
 
                 html.Div([
+                    # This span shows the name of the stock.
                     html.Span(stock, style={
                               'margin-right': '10px'}),
-                    html.Span(f'{variation(stock):.2%}',
-                              style={'color': 'green' if variation(stock) > 0 else 'red'})
-                ]) for stock in sorted(carousel_stocks)
-            ], id='main-carousel', autoplay=True, slides_to_show=5),
+                    
+                    # This other one shows its variation.
+                    html.Span('{}{:.2%}'.format('+' if carousel_prices[stock] > 0 else '', carousel_prices[stock]), style={
+                              'color': 'green' if carousel_prices[stock] > 0 else 'red'})
+                ]) for stock in sorted(carousel_prices.keys())
+            ], id='main-carousel', autoplay=True, slides_to_show=4),
 
             # The column below will occupy 75% of the width available in the dashboard.
             dbc.Col([
-                # Como utilizaremos dois dropdowns, terei que criar uma coluna para comportar ambos.
+
+                # This row holds the dropdowns responsible to the selection of the stock which informations are going
+                # to be displayed.
                 dbc.Row([
+
+                    # As I've decided in the beginning of the script, AMBEV's is the default company of the dashboard.
                     dbc.Col([
                         html.Label('Select the desired sector',
                                    style={'margin-left': '40px'}),
@@ -213,11 +230,13 @@ app.layout = html.Div([
                             id='stocks-dropdown',
                             value='ABEV3',
                             className="disabled",
-                            style={'margin-right': '15px'}
+                            style={'margin-right': '20px'}
                         )
                     ], width=6)
                 ]),
 
+                # Here the candlestick chart is placed. Note that it is contained inside a dcc.Loading object
+                # to give it a loading animation while its data is being imported.
                 dbc.Row([
                     dbc.Col([
                         dcc.Loading(
@@ -227,6 +246,8 @@ app.layout = html.Div([
                     ]),
                     dbc.Row([
                         dbc.Col([
+
+                            # This Div contains the time span buttons for adjustment of the x-axis' length.
                             html.Div([
                                      html.Button('1W', id='1W-button',
                                                  n_clicks=0, className='btn-secondary'),
@@ -244,6 +265,7 @@ app.layout = html.Div([
                                      ], style={'padding': '15px', 'margin-left': '35px'})
                         ], width=4),
 
+                        # The following checklist mentions the indicators available for use in the dashboard.
                         dbc.Col([
                             dcc.Checklist(
                                 ['Rolling Mean',
@@ -255,19 +277,27 @@ app.layout = html.Div([
                                 style={'margin-top': '20px'})
                         ], width=8)
                     ]),
-
-
-
                 ]),
-
             ], width=9),
+
+            # This other column occupies 25% of the dashboard's width.
             dbc.Col([
-                dash_table.DataTable(
-                    id='stocks-table', style_cell={'font_size': '12px',  'textAlign': 'center'},
-                    style_header={'backgroundColor': 'black',
-                                  'padding-right': '58px', 'border': 'none'},
-                    style_data={'height': '12px', 'backgroundColor': 'black', 'border': 'none'}, style_table={
-                        'height': '90px', 'overflowY': 'auto'}),
+
+                dbc.Row([
+                    
+                    # This DataTable stores the prices from the companies that pertain to the same economic sector
+                    # as the one chosen in the dropdowns.
+                    dcc.Loading([
+
+                        dash_table.DataTable(
+                            id='stocks-table', style_cell={'font_size': '12px',  'textAlign': 'center'},
+                            style_header={'backgroundColor': 'black',
+                                          'padding-right': '58px', 'border': 'none'},
+                            style_data={'height': '12px', 'backgroundColor': 'black', 'border': 'none'}, style_table={
+                                'height': '90px', 'overflowY': 'auto'})
+                    ], id='loading-table', type='circle', color='#1F51FF')
+
+                ], style={'margin-top': '28px'}),
 
                 # This Div will hold a card displaying the selected stock's current price and some of its 52-week informations.
                 html.Div([
@@ -310,42 +340,43 @@ app.layout = html.Div([
 
                              dcc.Graph(id='52-avg-week-price', figure=fig2),
                              dcc.Graph(id='52-week-min-max', figure=fig3)
-                         ], slides_to_show=1, autoplay=True, style={'height': '250px', 'width': '310px'}),
+                         ], slides_to_show=1, autoplay=True, speed=2000, style={'height': '220px', 'width': '310px', 'margin-bottom': '0px'}),
 
 
 
                          dbc.Row([
+
+                             html.H2('Correlations', style={
+                                     'font-size': '12px', 'color': 'grey', 'text-align': 'center'}),
                              # Those last two columns will hold the 52-week correlation cards,
                              # One for Bovespa index and the other for the average economic sector price.
                              dbc.Col([
 
-                                 dbc.Card([
-                                     dbc.CardBody([
-                                         html.H1('IBOVESPA Correlation',
-                                                 style={'font-size': '12px'}),
-                                         html.P(id='ibovespa-correlation',
-                                                style={'font-size': '30px'})
-                                     ], style={'height': '90px'})
-                                 ])
+                                 html.Div([
+                                     html.H1('IBOVESPA',
+                                             style={'font-size': '10px'}),
+                                     html.P(id='ibovespa-correlation',
+                                               style={'font-size': '20px', 'margin-top': '5px'})
+                                 ], style={'text-align': 'center'})
+
 
                              ], width=6),
 
                              dbc.Col([
-                                 dbc.Card([
-                                     dbc.CardBody([
-                                         html.H1('Sector Correlation',
-                                                 style={'font-size': '12px'}),
-                                         html.P(id='sector-correlation',
-                                                style={'font-size': '30px'})
-                                     ])
-                                 ], style={'height': '90px'})
+                                 html.Div([
+                                     html.H1('Sector',
+                                             style={'font-size': '10px'}),
+                                     html.P(id='sector-correlation',
+                                            style={'font-size': '20px', 'margin-top': '5px'})
+                                 ], style={'text-align': 'center'})
+
                              ], width=6)
-                         ])
+                         ], style={'margin-top': '2px'})
                          ], style={'backgroundColor': 'black', 'margin-top': '20px', 'padding': '5px'})
 
             ], width=3)
-        ])
-    ])
+            ])
+
 
 ])
 # Interactivity section
@@ -523,7 +554,7 @@ def update_average_weekly_price(stock):
         plot_bgcolor='black',
         paper_bgcolor='black',
         font_color='grey',
-        height=250,
+        height=220,
         width=310,
         margin=dict(l=10, r=10, b=5, t=5),
         autosize=False,
@@ -563,7 +594,7 @@ def update_min_max(stock):
         font={'size': 8},
         paper_bgcolor='black',
         font_color='grey',
-        height=250,
+        height=220,
         width=280,
         margin=dict(l=35, r=0, b=5, t=5),
         autosize=False,
@@ -572,58 +603,6 @@ def update_min_max(stock):
 
     return fig3
 
-
-'''
-# This function will allow the user to switch the different kinds of 52-weeks stock information charts with the use of a Dropdown.
-@app.callback(
-    Output('52-week-chart', 'figure'),
-    Input('stocks-dropdown', 'value'),
-    Input('52-week-dropdown', 'value')
-)
-def update_52_weeks_chart(stock, chart):
-    # Getting the stock's prices.
-    df = web.DataReader(f'{stock}.SA', 'yahoo',
-                        start='01-06-2020', end='31-12-2021')
-    # For the average price chart, we are extracting the weekly stocks mean value.
-    if chart == 'Average Price':
-        df_52_weeks_average = df.resample(
-            'W')['Close'].mean().iloc[-52:]
-        fig2 = go.Figure()
-        fig2.add_trace(go.Bar(x=df_52_weeks_average.index,
-                       y=df_52_weeks_average.values))
-    # If the option chosen was 'Min-Max', we'll collect the minimum and maximum prices achieved
-    # by the stock during the last 52 weeks.
-    elif chart == 'Min-Max':
-        df_52_weeks_min = df.resample('W')['Close'].min()[-52:].min()
-        df_52_weeks_max = df.resample('W')['Close'].max()[-52:].max()
-        current_price = df.iloc[-1]['Close']
-        fig2 = go.Figure()
-        # We'll plot a single bar indicating the highest price. After it, we'll set de x-axis
-        # minimum value to be the lowest price registered.
-        fig2.add_trace(
-            go.Bar(y=['price'], x=[current_price],
-                   orientation='h', name='Current Price')
-        )
-        fig2.add_trace(
-            go.Bar(y=['price'], x=[df_52_weeks_max-current_price], orientation='h', name='Maximum Price'))
-
-        # Stacking the bars.
-        fig2.update_layout(barmode='stack')
-        fig2.update_xaxes(range=[df_52_weeks_min, df_52_weeks_max])
-        fig2.add_annotation(x=current_price, y=-0.5, ay=-0.7,
-                            text='R$ {:.2f}'.format(current_price), font={'size': 9}, textangle=-45, showarrow=False,
-                            ax=current_price, xanchor='center', xref='x', yref='y',
-                            axref='x', ayref='y')
-        fig2.add_annotation(x=df_52_weeks_min, y=-0.5, ay=-0.7,
-                            text='R$ {:.2f}'.format(df_52_weeks_min), font={'size': 9}, textangle=-45, showarrow=False,
-                            ax=df_52_weeks_min, xanchor='center', xref='x', yref='y',
-                            axref='x', ayref='y')
-        fig2.add_annotation(x=df_52_weeks_max, y=-0.5, ay=-0.7,
-                            text='R$ {:.2f}'.format(df_52_weeks_max), font={'size': 9}, textangle=-45, showarrow=False,
-                            ax=df_52_weeks_max, xanchor='center', xref='x', yref='y',
-                            axref='x', ayref='y')
-    return fig2
-'''
 # This function will measure the correlation coefficient between the close values from the selected
 # stock and the BOVESPA index.
 
