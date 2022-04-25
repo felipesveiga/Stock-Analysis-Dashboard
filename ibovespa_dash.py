@@ -181,7 +181,7 @@ fig3.update_layout(
     font={'size': 8},
     paper_bgcolor='black',
     font_color='grey',
-    height=220, 
+    height=220,
     width=280,
     margin=dict(l=35, r=0, b=5, t=5),
     autosize=False,
@@ -200,7 +200,7 @@ app.layout = html.Div([
                     # This span shows the name of the stock.
                     html.Span(stock, style={
                               'margin-right': '10px'}),
-                    
+
                     # This other one shows its variation.
                     html.Span('{}{:.2%}'.format('+' if carousel_prices[stock] > 0 else '', carousel_prices[stock]), style={
                               'color': 'green' if carousel_prices[stock] > 0 else 'red'})
@@ -221,7 +221,7 @@ app.layout = html.Div([
                         dcc.Dropdown(options=[{'label': sector, 'value': sector}
                                               for sector in sorted(list(sector_stocks.keys()))],
                                      value='Food & Beverages',
-                                     id='sectors-dropdown', style={'margin-left': '20px', 'width': '400px'})
+                                     id='sectors-dropdown', style={'margin-left': '20px', 'width': '400px'}, searchable=False)
                     ], width=6),
                     dbc.Col([
 
@@ -230,7 +230,8 @@ app.layout = html.Div([
                             id='stocks-dropdown',
                             value='ABEV3',
                             className="disabled",
-                            style={'margin-right': '20px'}
+                            style={'margin-right': '20px'},
+                            searchable=False
                         )
                     ], width=6)
                 ]),
@@ -284,7 +285,7 @@ app.layout = html.Div([
             dbc.Col([
 
                 dbc.Row([
-                    
+
                     # This DataTable stores the prices from the companies that pertain to the same economic sector
                     # as the one chosen in the dropdowns.
                     dcc.Loading([
@@ -292,7 +293,7 @@ app.layout = html.Div([
                         dash_table.DataTable(
                             id='stocks-table', style_cell={'font_size': '12px',  'textAlign': 'center'},
                             style_header={'backgroundColor': 'black',
-                                          'padding-right': '58px', 'border': 'none'},
+                                          'padding-right': '62px', 'border': 'none'},
                             style_data={'height': '12px', 'backgroundColor': 'black', 'border': 'none'}, style_table={
                                 'height': '90px', 'overflowY': 'auto'})
                     ], id='loading-table', type='circle', color='#1F51FF')
@@ -303,18 +304,20 @@ app.layout = html.Div([
                 html.Div([
 
                          dbc.Card([
+
+                             # The card below presents the selected stock's current price.
                              dbc.CardBody([
                                  html.H1('ABEV3', id='stock-name',
                                          style={'font-size': '13px', 'text-align': 'center'}),
                                  dbc.Row([
                                      dbc.Col([
-                                         # Placing the current price in this <p> tag.
+                                         # Placing the current price.
                                          html.P('R$ {:.2f}'.format(ambev['Close'].iloc[-1]), id='stock-price', style={
                                              'font-size': '40px', 'margin-left': '5px'})
                                      ], width=8),
                                      dbc.Col([
-                                         # html.P('2021-12-31',
-                                         # id='stock-date', style={'font-size': '13px', 'font-style': 'italic', 'margin-right': '7px'}),
+
+                                         # This another paragraph shows the price variation.
                                          html.P(
                                              '{}{:.2%}'.format(
                                                  '+' if ambev_variation > 0 else '-', ambev_variation),
@@ -323,8 +326,6 @@ app.layout = html.Div([
 
                                  ])
 
-
-                                 # dcc.Graph
                              ])
                          ], id='stock-data', style={'height': '105px'}, color='black'),
 
@@ -334,7 +335,7 @@ app.layout = html.Div([
                          html.H1(
                              '52-Week Data', style={'font-size': '25px', 'text-align': 'center', 'color': 'grey', 'margin-top': '5px',
                                                     'margin-bottom': '0px'}),
-                         # Creating a Carousel showing the stock's average weekly price and a Speedoemeter
+                         # Creating a Carousel showing the stock's weekly average price and a Speedoemeter
                          # displaying how far its current price is from its minimum and maximum values achieved.
                          dtc.Carousel([
 
@@ -344,14 +345,14 @@ app.layout = html.Div([
 
 
 
+                         # In this row, the stock's correlation with the BOVESPA index (IBOVESPA), and its sector's daily average price.
                          dbc.Row([
 
                              html.H2('Correlations', style={
                                      'font-size': '12px', 'color': 'grey', 'text-align': 'center'}),
-                             # Those last two columns will hold the 52-week correlation cards,
-                             # One for Bovespa index and the other for the average economic sector price.
                              dbc.Col([
 
+                                 # IBOVESPA correlation.
                                  html.Div([
                                      html.H1('IBOVESPA',
                                              style={'font-size': '10px'}),
@@ -363,6 +364,8 @@ app.layout = html.Div([
                              ], width=6),
 
                              dbc.Col([
+
+                                 # Sector correlation.
                                  html.Div([
                                      html.H1('Sector',
                                              style={'font-size': '10px'}),
@@ -381,7 +384,7 @@ app.layout = html.Div([
 ])
 # Interactivity section
 
-# Allowing the stocks dropdown to display the stocks that are pertained by the sector chosen in the economic sector dropdown
+# Allowing the stock dropdown to display the stocks that are pertained to the sector chosen in the economic sector dropdown
 
 
 @ app.callback(
@@ -393,7 +396,8 @@ def modify_stocks_dropdown(sector):
     return stocks
 
 
-# Function that will change the data being displayed in the main chart in accordance to the stock selected in the dropdown.
+# A function that will change the data being displayed in the candlestick chart in accordance to the stock selected in the dropdown.
+# Also, we'll enable the user to adjust the x-axis length and to insert some indicators.
 @ app.callback(
     Output('price-chart', 'figure'),
     Input('stocks-dropdown', 'value'),
@@ -406,17 +410,16 @@ def modify_stocks_dropdown(sector):
     Input('3Y-button', 'n_clicks'),
 )
 def change_price_chart(stock, checklist_values, button_1w, button_1m, button_3m, button_6m, button_1y, button_3y):
+    # Retrieving the stock's data.
     df = web.DataReader(f'{stock}.SA', 'yahoo',
                         start='01-01-2015', end='31-12-2021')
+
+    # Applying some indicators to its closing prices.
     df_bbands = bbands(df['Close'], length=20, std=2)
     # Measuring the Rolling Mean and Exponential Rolling means
     df['Rolling Mean'] = df['Close'].rolling(window=9).mean()
     df['Exponential Rolling Mean'] = df['Close'].ewm(
         span=9, adjust=False).mean()
-    # df['MACD'] = macd(df['Close']).values
-    # df['MACD'] = macd(df['Close']
-    # O IBOVESPA não foi calculado em certas datas. Portanto, há um menor número de dados sobre ele do que sobre
-    # a ação sendo analisada, o que impossibilita a sua inserção em 'df'.
 
     # Each metric will have its own color in the chart.
     colors = {'Rolling Mean': '#6fa8dc',
@@ -427,9 +430,12 @@ def change_price_chart(stock, checklist_values, button_1w, button_1m, button_3m,
     fig = go.Figure()
     fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], close=df['Close'],
                                  high=df['High'], low=df['Low'], name='Stock Price'))
+
+    # If the user has selected any of the indicators in the checklist, we'll represent it in the chart.
     if checklist_values != None:
         for metric in checklist_values:
 
+            # Adding the Bollinger Bands' typical three lines.
             if metric == 'Bollinger Bands':
                 fig.add_trace(go.Scatter(
                     x=df.index, y=df_bbands.iloc[:, 0],
@@ -443,6 +449,7 @@ def change_price_chart(stock, checklist_values, button_1w, button_1m, button_3m,
                     x=df.index, y=df_bbands.iloc[:, 2],
                     mode='lines', name=metric, line={'color': colors['Bollinger Bands High'], 'width': 1}))
 
+            # Plotting any of the other metrics remained, if they are chosen.
             else:
                 fig.add_trace(go.Scatter(
                     x=df.index, y=df[metric], mode='lines', name=metric, line={'color': colors[metric], 'width': 1}))
@@ -456,8 +463,7 @@ def change_price_chart(stock, checklist_values, button_1w, button_1m, button_3m,
         showlegend=False
     )
     # Defining the chart's x-axis length according to the button clicked.
-    # To do this, we'll alter the 'min_date' and 'max_date' global variables
-    # that were defined in the beginning of the script.
+    # To do this, we'll alter the 'min_date' and 'max_date' global variables that were defined in the beginning of the script.
     global min_date, max_date
     changed_id = [p['prop_id'] for p in callback_context.triggered][0]
     if '1W-button' in changed_id:
@@ -484,14 +490,14 @@ def change_price_chart(stock, checklist_values, button_1w, button_1m, button_3m,
         fig.update_xaxes(range=[min_date, max_date])
         fig.update_yaxes(tickprefix='R$')
         return fig
-    # Updating the x-axis length
+    # Updating the x-axis length.
     fig.update_xaxes(range=[min_date, max_date])
     fig.update_yaxes(tickprefix='R$')
     # fig.update_yaxes(color='white')
     return fig
 
 
-# This dash_table will display the value from the stocks that are part of the economic sector chosen in the Data Table.
+# This dash_table displays the value from the stocks that are part of the economic sector chosen in the dropdowns.
 @ app.callback(
     Output('stocks-table', 'data'),
     Output('stocks-table', 'columns'),
@@ -499,7 +505,7 @@ def change_price_chart(stock, checklist_values, button_1w, button_1m, button_3m,
 )
 def update_stocks_table(sector):
     global sector_stocks
-    # This DatFrame will be the base for the table to be displayed.
+    # This DataFrame will be the base for the table.
     df = pd.DataFrame({'Stock': [stock for stock in sector_stocks[sector]], 'Close': [np.nan for i in range(len(sector_stocks[sector]))]},
                       index=[stock for stock in sector_stocks[sector]])
     # Each one of the stock names and their respective prices are going to be stored in the 'df'  DataFrame
@@ -525,14 +531,16 @@ def update_stock_data_card(stock):
     # Retrieving data from the Yahoo Finance API.
     df = web.DataReader(f'{stock}.SA', 'yahoo',
                         start='2021-12-29', end='2021-12-31')['Close']
-    # Getting the stock's current price and its variation in comparison to its previous value.
+    # Getting the chosen stock's current price and its variation in comparison to its previous value.
     stock_current_price = df.iloc[-1]
     stock_variation = 1 - (df.iloc[-1] / df.iloc[-2])
+
+    # Note that as in the Carousel, the varitation value will be painted in red or green depending if it is a negative or positive number.
     return stock, 'R$ {:.2f}'.format(stock_current_price), '{}{:.2%}'.format('+' if stock_variation > 0 else'-', stock_variation), \
         {'font-size': '14px', 'margin-top': '25px',
             'color': 'green' if stock_variation > 0 else 'red'}
 
-# This function is going to be responsible of updating the average weekly price.
+# This function is responsible for updating the average weekly price chart.
 
 
 @app.callback(
@@ -603,8 +611,7 @@ def update_min_max(stock):
 
     return fig3
 
-# This function will measure the correlation coefficient between the close values from the selected
-# stock and the BOVESPA index.
+# This function will measure the correlation coefficient between the stock's closing values and the BOVESPA index.
 
 
 @ app.callback(
@@ -626,8 +633,8 @@ def ibovespa_correlation(stock):
     # Returning the correlation coefficient value between.
     return f'{pearsonr(ibovespa, stock_close)[0] :.2%}'
 
-# Now, this other function will measure the same stat, now between the stock's value
-# and the average close price from its respective sector in the last 52 weeks.
+# Now, this other function will measure the same stat, but now between the stock's value
+# and the average closing price from its respective sector in the last 52 weeks.
 
 
 @ app.callback(
@@ -662,5 +669,6 @@ def sector_correlation(sector, stock):
     return f'{pearsonr(sector_daily_average, stock_close)[0] :.2%}'
 
 
+# Running the Dash app.
 if __name__ == '__main__':
     app.run_server(debug=True)
