@@ -119,7 +119,7 @@ ambev = web.DataReader('ABEV3.SA', 'yahoo',
 # 'ambev_variation' is stored inside the card that shows the stock's current price.
 ambev_variation = 1 - (ambev['Close'].iloc[-1] / ambev['Close'].iloc[-2])
 
-# 'fig1' exposes a candlestick chart with the prices of the stock since 2015.
+# 'fig' exposes a candlestick chart with the prices of the stock since 2015.
 fig = go.Figure()
 fig.add_trace(go.Candlestick(x=ambev.index,
                              open=ambev['Open'],
