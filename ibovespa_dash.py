@@ -191,6 +191,7 @@ fig3.update_layout(
 
 # Remember to always place the 'stylesheet' inside brackets.
 app = dash.Dash(external_stylesheets=[dbc.themes.CYBORG])
+server = app.server
 app.layout = html.Div([
     # In this row, a carousel showing the prices of some the main stocks from IBOVESPA is placed.
     dbc.Row([
