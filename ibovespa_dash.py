@@ -1,8 +1,6 @@
-# Parei no cartão com o preço da ação atual.
 from tracemalloc import start
 import dash
 from dash import html, dcc, dash_table, callback_context
-#from matplotlib.pyplot import title
 import plotly.graph_objects as go
 import dash_trich_components as dtc
 from dash.dependencies import Input, Output
@@ -189,9 +187,7 @@ fig3.update_layout(
 )
 
 
-# Remember to always place the 'stylesheet' inside brackets.
 app = dash.Dash(external_stylesheets=[dbc.themes.CYBORG])
-server = app.server
 app.layout = html.Div([
     # In this row, a carousel showing the prices of some the main stocks from IBOVESPA is placed.
     dbc.Row([
